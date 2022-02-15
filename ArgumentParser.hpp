@@ -8,6 +8,9 @@
 class OptionArgument
 {
 private:
+
+	friend class ArgumentParser;
+
 	std::string mOptionString;
 	std::vector< std::string > mOptionValues;
 
@@ -15,13 +18,102 @@ private:
 		const std::string& optionString,
 		const std::vector< std::string >& optionValues )
 	{
+		mOptionString = optionString;
+		mOptionValues = optionValues;
 	}
 
 public:
-	const std::string& optionString() const;
 
+	/**
+	 * Default constructor to an empty OptionArgument instance.
+	 */
+	OptionArgument()
+	{
+	}
+
+	/**
+	 * Move constructor.
+	 * @param other R-Value to OptionArgument to move to this instance.
+	 */
+	OptionArgument(
+		OptionArgument&& other )
+	{
+		_moveAssign( std::move( other ) );
+	}
+
+	/**
+	 * Copy constructor.
+	 * @param other Const reference to the OptionArgument to copy to this instance.
+	 */
+	OptionArgument(
+		const OptionArgument& other )
+	{
+		_copyAssign( other );
+	}
+
+	OptionArgument& operator=(
+		OptionArgument&& other )
+	{
+		if ( this != &other )
+		{
+			_moveAssign( std::move( other ) );
+		}
+
+		return *this;
+	}
+
+	OptionArgument& operator=(
+		const OptionArgument& other )
+	{
+		if ( this != &other )
+		{
+			_copyAssign( other );
+		}
+
+		return *this;
+	}
+
+	/**
+	 * The option flag that this option argument came from.
+	 * @return The string of the option flag.
+	 */
+	const std::string& optionString() const
+	{
+		return mOptionString;
+	}
+
+	/**
+	 * The number of values present for this option.
+	 * If the option has been set to take only the first or the
+	 * last, then this method is expected to only return at most 1.
+	 * @return The number of values present for this option is returned.
+	 */
+	size_t size() const
+	{
+		return mOptionValues.size();
+	}
+
+	/**
+	 * Get the value at the given index cast as the provided type.
+	 * The casting will be from std::string. For arithmetic types, the STL
+	 * funtions std::sto{ld,ull,ll} are used, downcasting shall occur for
+	 * artihmetic types shorter than the max length. For all other types
+	 * the std::string value shall be passed to a constructor.
+	 * @param index The index of the value to be cast from a string. [default: 0]
+	 * @return The value at the requested index cast to the desired Type.
+	 * @throw std::out_of_range is thrown if the index is out of range.
+	 */
 	template< typename Type >
-	Type valueAs( size_t index ) const;
+	Type valueAs( size_t index = 0 ) const
+	{
+		// This branch can be nipped for non-arithmetic
+		// types by turning on the optimizer.
+		if ()
+		{
+		}
+
+		return Type( mOptionValues.at( index ) );
+	}
 };
 
 class ArgumentParser
@@ -46,42 +138,86 @@ private:
 
 	class _OptionHandler
 	{
-	private:
-		std::string mDefaultStringValue;
-		std::function< void( const std::string& ) > mCallback;
-		ArgumentParser::OptionValue mValueRequired;
-		ArgumentParser::OptionSelection mSelection;
-		std::string mHelpString;
+	public:
 
+		std::string defaultStringValue;
+		std::function< void( const std::string& ) > callback;
+		ArgumentParser::OptionValue valueRequired;
+		ArgumentParser::OptionSelection selection;
+		std::string helpString;
+
+	private:
+
+		// move assignment
 		void _moveAssign(
 			_OptionHandler&& other )
 		{
+			this->defaultStringValue = std::move( other.defaultStringValue );
+			this->callback = std::exchange( other.callback, nullptr );
+			this->valueRequired = std::exchange( other.valueRequired, ArgumentParser::OptionValue::optional );
+			this->selection = std::exchange( other.selection, ArgumentParser::OptionSelection::take_last );
+			this->helpString = std::move( other.helpString );
 		}
 
+		// copy assignment
 		void _copyAssign(
 			const _OptionHandler& other )
 		{
+			this->defaultStringValue = other.defaultStringValue;
+			this->callback = other.callback;
+			this->valueRequired = other.valueRequired;
+			this->selection = other.selection;
+			this->helpString = other.helpString;
 		}
 
 	public:
+
+		// default constructor
+		_OptionHandler()
+		{
+			this->defaultStringValue = std::string( "" );
+			this->callback = nullptr;
+			this->valueRequired = ArgumentParser::OptionValue::optional;
+			this->selection = ArgumentParser::OptionSelection::take_last;
+			this->helpString = std::string( "" );
+		}
+
+		// move constructor
 		_OptionHandler(
 			_OptionHandler&& other )
 		{
+			_moveAssign( std::move( other ) );
 		}
 
+		// copy constructor
 		_OptionHandler(
 			const _OptionHandler& other )
 		{
+			_copyAssign( other );
 		}
 
+		// move assignment operator
 		_OptionHandler& operator=(
 			_OptionHandler&& other )
 		{
+			if ( this != &other )
+			{
+				_moveAssign( std::move( other ) );
+			}
+
+			return *this;
 		}
 
-		_OptionHandler& operator(
+		// copy assignment operator
+		_OptionHandler& operator=(
 			const _OptionHandler& other )
 		{
+			if ( this != &other )
+			{
+				_copyAssign( other );
+			}
+
+			return *this;
 		}
 	};
 
@@ -117,6 +253,8 @@ public:
 
 	class MissingRequiredOption : public std::exception
 	{
+	private:
+	public:
 	};
 
 	/**
@@ -168,6 +306,20 @@ public:
 	}
 
 	/**
+	 * Clear out the parsed option arguments and non-option arguments.
+	 */
+	void clear()
+	{
+		for ( const auto& optionString : mRequiredOptions )
+		{
+			mRequiredOptions[ optionString ] = false;
+		}
+
+		mParsedOptions.clear();
+		mNonOptionArguments.clear();
+	}
+
+	/**
 	 * Move assignment operator.
 	 * @param other R-value to the ArgumentParser to move to this instance.
 	 * @return Reference to this ArgumentParser instance.
@@ -188,7 +340,7 @@ public:
 	 * @param other Const reference to the ArgumentParser to copy to this instance.
 	 * @return Reference to this ArgumentParser instance.
 	 */
-	ArgumentParser& operator(
+	ArgumentParser& operator=(
 		const ArgumentParser& other )
 	{
 		if ( this != &other )
@@ -213,7 +365,7 @@ public:
 			throw std::invalid_argument( "" );
 		}
 
-		// Iterate over
+		// Iterate over arguments
 		for ( int index( 0 ); ++index < argc; )
 		{
 			if ( nullptr == argv[ index ] )
@@ -221,9 +373,35 @@ public:
 				goto clearAndThrowInvalidArgument;
 			}
 
-			if ( '-' == argv[ index ][ 0 ] )
+			std::string argument( argv[ index ] );
+			if ( 0 == strncmp( argv[ index ], "--", 2 ) )
 			{
-				
+				// Check if the option has a handler
+				auto mapIterator = mOptionsHandlerMap.find( argument );
+
+				if ( mOptionsHandlerMap.end() == mapIterator )
+				{
+					// For the moment, output an error message
+					fprintf( stderr, "Unknown option flag: %s\n", argv[ index ] );
+					continue;
+				}
+				else
+				{
+					_OptionHandler& handler = mapIterator->second;
+					// Get the value if applicable
+					// Check how to handle the value
+					// Check for a callback
+				}
+
+				// Check if this is a required option flag
+				if ( mRequiredOptions.end() != mRequiredOptions.find( argument ) )
+				{
+					mRequiredOptions[ argument ] = true;
+				}
+			}
+			else
+			{
+				mNonOptionArguments.push_back( std::move( argument ) );
 			}
 		}
 
