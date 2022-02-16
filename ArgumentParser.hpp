@@ -5,6 +5,14 @@
  */
 #pragma once
 
+#include <cstdio>
+#include <functional>
+#include <map>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
 class OptionArgument
 {
 private:
@@ -14,6 +22,23 @@ private:
 	std::string mOptionString;
 	std::vector< std::string > mOptionValues;
 
+	// move assign
+	void _moveAssign(
+		OptionArgument&& other )
+	{
+		mOptionString = std::move( other.mOptionString );
+		mOptionValues = std::move( other.mOptionValues );
+	}
+
+	// copy assign
+	void _copyAssign(
+		const OptionArgument& other )
+	{
+		mOptionString = other.mOptionString;
+		mOptionValues = other.mOptionValues;
+	}
+
+	// assignment constructor; this'll be called by ArgumentParser
 	OptionArgument(
 		const std::string& optionString,
 		const std::vector< std::string >& optionValues )
@@ -51,6 +76,11 @@ public:
 		_copyAssign( other );
 	}
 
+	/**
+	 * Move assignment operator.
+	 * @param other R-Value to OptionArgument to move to this instance.
+	 * @return Reference to this OptionArgument is returned.
+	 */
 	OptionArgument& operator=(
 		OptionArgument&& other )
 	{
@@ -62,6 +92,11 @@ public:
 		return *this;
 	}
 
+	/**
+	 * Copy assignment operator.
+	 * @param other Const reference to the OptionArgument to copy to this instance.
+	 * @return Reference to this OptionArgument is returned.
+	 */
 	OptionArgument& operator=(
 		const OptionArgument& other )
 	{
@@ -254,7 +289,16 @@ public:
 	class MissingRequiredOption : public std::exception
 	{
 	private:
+
+		friend class ArgumentParser;
+
+		MissingRequiredOption(
+			const std::vector< std::string >& missingOptions )
+		{
+		}
+
 	public:
+		
 	};
 
 	/**
@@ -292,7 +336,8 @@ public:
 	 * @param valueRequired
 	 * @param selection
 	 * @param callback
-	 * @param defaultValue
+	 * @param defaultValue The default string value to be passed into the callback, should it be present, in the case
+	 *                     that an argument value is not
 	 */
 	void addOption(
 		const std::string& optionString,
@@ -354,9 +399,10 @@ public:
 	/**
 	 * Parse arguments from the c-string array.
 	 * @param argc The number of elements in the c-string array.
-	 * @param argv An array of c-strings.
+	 * @param argv An array of c-strings. The array is expected to be null terminated.
+	 *             That is, the element at argv[ argc ] is expected to be a null pointer.
 	 */
-	void parserArguments(
+	void parseArguments(
 		int argc,
 		const char** argv )
 	{
@@ -388,9 +434,56 @@ public:
 				else
 				{
 					_OptionHandler& handler = mapIterator->second;
+					std::string optionValue( handler.defaultStringValue );
+
 					// Get the value if applicable
+					if ( ArgumentParser::OptionValue::optional == handler.valueRequired )
+					{
+						if ( ( nullptr != argv[ index + 1 ] )
+							and ( 0 != strncmp( argv[ index + 1 ], "--", 2 ) ) )
+						{
+							optionValue.assign( argv[ ++index ] );
+						}
+					}
+					else if ( ArgumentParser::OptionValue::required == handler.valueRequired )
+					{
+						if ( nullptr == argv[ index + 1 ] )
+						{
+							fprintf( stderr, "" );
+						}
+
+						optionValue.assign( argv[ ++index ] );
+					}
+
 					// Check how to handle the value
+					// Regardless of which value is selected, if nothing is present we insert the first
+					if ( mParsedOptions.end() == mParsedOptions.find( argument ) )
+					{
+						mParsedOptions.insert(
+							OptionArgument( argument,
+								std::vector< std::string > { optionValue } ) );
+					}
+
+					switch ( handler.selection )
+					{
+					case ArgumentParser::OptionSelection::take_first:
+						// We don't need to do anything else
+						break;
+
+					case ArgumentParser::OptionSelection::take_last:
+						mParsedOptions[ argument ].mOptionValues[ 0 ] = optionValue;
+						break;
+
+					case ArgumentParser::OptionSelection::take_all:
+						mParsedOptions[ argument ].mOptionValues.push_back( optionValue );
+						break;
+					}
+
 					// Check for a callback
+					if ( nullptr != handler.callback )
+					{
+						handler.callback( optionValue );
+					}
 				}
 
 				// Check if this is a required option flag
