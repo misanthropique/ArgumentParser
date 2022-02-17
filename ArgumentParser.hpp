@@ -10,6 +10,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -143,8 +144,33 @@ public:
 	{
 		// This branch can be nipped for non-arithmetic
 		// types by turning on the optimizer.
-		if ()
+		if ( std::is_arthmetic< Type >::value )
 		{
+			const char* mOptionValues.at( index )
+			if ( std::is_floating_point< Type >::value )
+			{
+				// TBD
+			}
+
+			if ( std::is_unsigned< Type >::value )
+			{
+				static const Type unsignedTypeMax = ~( ( Type ) 0 );
+
+				unsigned long long int value = std::strtoull( mOptionValues.at( index ).c_str(), nullptr, 0 );
+				return ( value > unsignedTypeMax ) ? unsignedTypeMax : static_cast< Type >( value );
+			}
+
+			if ( std::is_signed< Type >::value )
+			{
+				static const Type signedTypeMin = ( ( Type ) 1 ) << ( 8 * sizeof( Type ) - 1 );
+				static const Type signedTypeMax = ( ~( ( Type ) 0 ) ) >> 1;
+
+				long long int value = std::strtoll( mOptionValues.at( index ).c_str(), nullptr, 0 );
+
+				return ( value < 0 )
+					? ( ( value < signedTypeMin ) ? signedTypeMin : static_cast< Type >( value ) )
+					: ( ( value > signedTypeMax ) ? signedTypeMax : static_cast< Type >( value ) );
+			}
 		}
 
 		return Type( mOptionValues.at( index ) );
