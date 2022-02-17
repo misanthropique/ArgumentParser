@@ -348,6 +348,24 @@ public:
 		std::function< void( const std::string& ) > callback = nullptr,
 		const std::string& defaultValue = std::string() )
 	{
+		if ( mOptionsHandlerMap.end() != mOptionsHandlerMap.find( optionString ) )
+		{
+			throw std::invalid_argument( "The handler for option \"" + optionString + "\" is already defined" );
+		}
+
+		_OptionHandler handler;
+		handler.defaultStringValue = defaultValue;
+		handler.callback = callback;
+		handler.valueRequired = valueRequired;
+		handler.selection = selection;
+		handler.helpString = helpString;
+
+		mOptionsHandlerMap[ optionString ] = std::move( handler );
+
+		if ( required )
+		{
+			mRequiredOptions[ optionString ] = false;
+		}
 	}
 
 	/**
