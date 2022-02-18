@@ -131,51 +131,17 @@ public:
 	}
 
 	/**
-	 * Get the value at the given index cast as the provided type.
-	 * The casting will be from std::string. For arithmetic types, the STL
-	 * funtions std::sto{ld,ull,ll} are used, downcasting shall occur for
-	 * artihmetic types shorter than the max length. For all other types
-	 * the std::string value shall be passed to a constructor.
-	 * @param index The index of the value to be cast from a string. [default: 0]
-	 * @return The value at the requested index cast to the desired Type.
-	 * @throw std::out_of_range is thrown if the index is out of range.
+	 * Get the value at {@param index}.
+	 * If this option has no arguments or if the index is greater than
+	 * the number of values, then this method throws std::out_of_range.
+	 * @param index Index of value to retrieve. [default: 0]
+	 * @return Const reference to the std::string containing the value.
+	 * @throw std::out_of_range is thrown if no value exists at the given index.
 	 */
-	template< typename Type >
-	Type valueAs( size_t index = 0 ) const
+	const std::string& value(
+		size_t index = 0 ) const
 	{
-		// This branch can be nipped for non-arithmetic
-		// types by turning on the optimizer.
-		if ( std::is_arithmetic< Type >::value )
-		{
-			const char* valueCString = mOptionValues.at( index ).c_str();
-			if ( std::is_floating_point< Type >::value )
-			{
-				long double longDoubleValue = std::strtold( valueCString, nullptr );
-				return static_cast< Type >( longDoubleValue );
-			}
-
-			if ( std::is_unsigned< Type >::value )
-			{
-				static const Type unsignedTypeMax = ~( ( Type ) 0 );
-
-				unsigned long long int value = std::strtoull( valueCString, nullptr, 0 );
-				return ( value > unsignedTypeMax ) ? unsignedTypeMax : static_cast< Type >( value );
-			}
-
-			if ( std::is_signed< Type >::value )
-			{
-				static const Type signedTypeMin = ( ( Type ) 1 ) << ( 8 * sizeof( Type ) - 1 );
-				static const Type signedTypeMax = ( ~( ( Type ) 0 ) ) >> 1;
-
-				long long int value = std::strtoll( valueCString, nullptr, 0 );
-
-				return ( value < 0 )
-					? ( ( value < signedTypeMin ) ? signedTypeMin : static_cast< Type >( value ) )
-					: ( ( value > signedTypeMax ) ? signedTypeMax : static_cast< Type >( value ) );
-			}
-		}
-
-		return Type( mOptionValues.at( index ) );
+		return mOptionValues.at( index );
 	}
 };
 
