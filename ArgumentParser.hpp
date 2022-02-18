@@ -515,6 +515,7 @@ public:
 						if ( nullptr == argv[ index + 1 ] )
 						{
 							fprintf( stderr, "Required value not present for option: %s\n", argument.c_str() );
+							continue;
 						}
 
 						optionValue.assign( argv[ ++index ] );
