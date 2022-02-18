@@ -149,7 +149,8 @@ public:
 			const char* mOptionValues.at( index )
 			if ( std::is_floating_point< Type >::value )
 			{
-				// TBD
+				long double longDoubleValue = std::strtold( mOptionValues.at( index ).c_str(), nullptr );
+				return static_cast< Type >( longDoubleValue );
 			}
 
 			if ( std::is_unsigned< Type >::value )
@@ -318,13 +319,30 @@ public:
 
 		friend class ArgumentParser;
 
+		std::string mMessage;
+
 		MissingRequiredOption(
 			const std::vector< std::string >& missingOptions )
 		{
+			mMessage = std::string( "Missing option arguments:" );
+			for ( const auto& option : missingOptions )
+			{
+				mMessage.append( "\n\t" + option );
+			}
+			mMessage.append( "\n" );
 		}
 
 	public:
-		
+		const char* what() const noexcept
+		{
+			return mMessage.c_str();
+		}
+
+		MissingRequiredOption& operator=(
+			const MissingRequiredOption& other ) noexcept
+		{
+			mMessage = other.mMessage;
+		}
 	};
 
 	/**
