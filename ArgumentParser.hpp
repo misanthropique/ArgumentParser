@@ -467,7 +467,7 @@ public:
 	 */
 	void parseArguments(
 		int argc,
-		const char** argv )
+		char const* const* argv )
 	{
 		if ( nullptr != argv[ argc ] )
 		{
