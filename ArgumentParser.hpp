@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <stdexcept>
@@ -144,12 +145,12 @@ public:
 	{
 		// This branch can be nipped for non-arithmetic
 		// types by turning on the optimizer.
-		if ( std::is_arthmetic< Type >::value )
+		if ( std::is_arithmetic< Type >::value )
 		{
-			const char* mOptionValues.at( index )
+			const char* valueCString = mOptionValues.at( index ).c_str();
 			if ( std::is_floating_point< Type >::value )
 			{
-				long double longDoubleValue = std::strtold( mOptionValues.at( index ).c_str(), nullptr );
+				long double longDoubleValue = std::strtold( valueCString, nullptr );
 				return static_cast< Type >( longDoubleValue );
 			}
 
@@ -157,7 +158,7 @@ public:
 			{
 				static const Type unsignedTypeMax = ~( ( Type ) 0 );
 
-				unsigned long long int value = std::strtoull( mOptionValues.at( index ).c_str(), nullptr, 0 );
+				unsigned long long int value = std::strtoull( valueCString, nullptr, 0 );
 				return ( value > unsignedTypeMax ) ? unsignedTypeMax : static_cast< Type >( value );
 			}
 
@@ -166,7 +167,7 @@ public:
 				static const Type signedTypeMin = ( ( Type ) 1 ) << ( 8 * sizeof( Type ) - 1 );
 				static const Type signedTypeMax = ( ~( ( Type ) 0 ) ) >> 1;
 
-				long long int value = std::strtoll( mOptionValues.at( index ).c_str(), nullptr, 0 );
+				long long int value = std::strtoll( valueCString, nullptr, 0 );
 
 				return ( value < 0 )
 					? ( ( value < signedTypeMin ) ? signedTypeMin : static_cast< Type >( value ) )
@@ -417,9 +418,9 @@ public:
 	 */
 	void clear()
 	{
-		for ( const auto& optionString : mRequiredOptions )
+		for ( const auto& requiredOption : mRequiredOptions )
 		{
-			mRequiredOptions[ optionString ] = false;
+			mRequiredOptions[ requiredOption.first ] = false;
 		}
 
 		mParsedOptions.clear();
@@ -473,6 +474,8 @@ public:
 			throw std::invalid_argument( "" );
 		}
 
+		std::vector< std::string > missingOptions;
+
 		// Iterate over arguments
 		for ( int index( 0 ); ++index < argc; )
 		{
@@ -511,7 +514,7 @@ public:
 					{
 						if ( nullptr == argv[ index + 1 ] )
 						{
-							fprintf( stderr, "" );
+							fprintf( stderr, "Required value not present for option: %s\n", argument.c_str() );
 						}
 
 						optionValue.assign( argv[ ++index ] );
@@ -522,8 +525,11 @@ public:
 					if ( mParsedOptions.end() == mParsedOptions.find( argument ) )
 					{
 						mParsedOptions.insert(
-							OptionArgument( argument,
-								std::vector< std::string > { optionValue } ) );
+							{
+								argument,
+								OptionArgument( argument,
+									std::vector< std::string > { optionValue } )
+							} );
 					}
 
 					switch ( handler.selection )
@@ -561,12 +567,11 @@ public:
 		}
 
 		// Check for missing required arguments
-		std::vector< std::string > missingOptions;
-		for ( const auto& optionString : mRequiredOptions )
+		for ( const auto& requiredOption : mRequiredOptions )
 		{
-			if ( not mRequiredOptions[ optionString ] )
+			if ( not mRequiredOptions[ requiredOption.first ] )
 			{
-				missingOptions.push_back( optionString );
+				missingOptions.push_back( requiredOption.first );
 			}
 		}
 
@@ -581,9 +586,9 @@ public:
 	clearAndThrowInvalidArgument:
 		mParsedOptions.clear();
 		mNonOptionArguments.clear();
-		for ( const auto& optionString : mRequiredOptions )
+		for ( const auto& requiredOption : mRequiredOptions )
 		{
-			mRequiredOptions[ optionString ] = false;
+			mRequiredOptions[ requiredOption.first ] = false;
 		}
 
 		throw std::invalid_argument( "" );
