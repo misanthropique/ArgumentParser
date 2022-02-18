@@ -325,10 +325,10 @@ public:
 		MissingRequiredOption(
 			const std::vector< std::string >& missingOptions )
 		{
-			mMessage = std::string( "\nMissing option arguments:" );
+			mMessage = std::string( "\n\tMissing option arguments:" );
 			for ( const auto& option : missingOptions )
 			{
-				mMessage.append( "\n\t" + option );
+				mMessage.append( "\n\t\t" + option );
 			}
 			mMessage.append( "\n" );
 		}
