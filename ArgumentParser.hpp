@@ -165,6 +165,8 @@ public:
 
 private:
 
+	static const std::string HELP_OPTION_STRING( "--help" );
+
 	class _OptionHandler
 	{
 	public:
@@ -341,14 +343,20 @@ public:
 
 	/**
 	 * Add an option and handler for the option.
-	 * @param optionString
-	 * @param required
-	 * @param helpString
-	 * @param valueRequired
-	 * @param selection
-	 * @param callback
+	 * @param optionString Any unique string to be representative of the option argument. The {@param optionString}
+	 *                     if not prefixed with a '--' will have it prefixed. Should there be only 1 dash '-' prefixing
+	 *                     the string, then a second dash ( '-' ) will be added so that the option is prefixed with 2 dashes ( '--' ).
+	 *                     If {@param optionString} is only 2 dashes ( '--' ), then std::invalid_argument will be thrown.
+	 *                     Finally, the normalized optionString may not be '--help', as that is reserved.
+	 * @param required Boolean indicating that this option is required to be present in the command line arguments. [default: false]
+	 * @param helpString A help string to be displayed when --help is present in the command line arguments. [default: ""]
+	 * @param valueRequired Define if a value is required for the option flag. [default: OptionValue::optional]
+	 * @param selection Define which value to take, should the option flag appear more than once in the command line arguments. [default: OptionSelection::take_last]
+	 * @param callback A pointer to a callback function to call each time the option flag is found. [default: nullptr]
 	 * @param defaultValue The default string value to be passed into the callback, should it be present, in the case
-	 *                     that an argument value is not
+	 *                     that an argument value is not either optional, and not present, or not expected. [default: ""]
+	 * @throw std::invalid_argument is thrown if the optionString is empty, equal to "--", or equal to "--help"
+	 * @throw std::invalid_argument is thrown if the optionString is already defined with a handler.
 	 */
 	void addOption(
 		const std::string& optionString,
@@ -359,9 +367,38 @@ public:
 		std::function< void( const std::string& ) > callback = nullptr,
 		const std::string& defaultValue = std::string() )
 	{
-		if ( mOptionsHandlerMap.end() != mOptionsHandlerMap.find( optionString ) )
+		std::string normalizedOptionString;
+
+		if ( optionString.empty() )
 		{
-			throw std::invalid_argument( "The handler for option \"" + optionString + "\" is already defined" );
+			throw std::invalid_argument( "Option string may not be empty" );
+		}
+
+		if ( '-' != optionString[ 0 ] )
+		{
+			normalizedOptionString = "--" + optionString;
+		}
+		else if ( ( 2 <= optionString.length() ) and ( '-' != optionString[ 1 ] ) )
+		{
+			normalizedOptionString = "-" + optionString;
+		}
+		else if ( 3 <= optionString.length() )
+		{
+			normalizedOptionString = optionString;
+		}
+		else
+		{
+			throw std::invalid_argument( "Option string must have more than just \"--\"" );
+		}
+
+		if ( HELP_OPTION_STRING == normalizedOptionString )
+		{
+			throw std::invalid_argument( "The normalized option string may not be \"--help\"" );
+		}
+
+		if ( mOptionsHandlerMap.end() != mOptionsHandlerMap.find( normalizedOptionString ) )
+		{
+			throw std::invalid_argument( "The handler for option \"" + normalizedOptionString + "\" is already defined" );
 		}
 
 		_OptionHandler handler;
@@ -371,11 +408,11 @@ public:
 		handler.selection = selection;
 		handler.helpString = helpString;
 
-		mOptionsHandlerMap[ optionString ] = std::move( handler );
+		mOptionsHandlerMap[ normalizedOptionString ] = std::move( handler );
 
 		if ( required )
 		{
-			mRequiredOptions[ optionString ] = false;
+			mRequiredOptions[ normalizedOptionString ] = false;
 		}
 	}
 
