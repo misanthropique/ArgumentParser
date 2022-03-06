@@ -6,11 +6,13 @@
 #pragma once
 
 // Standard includes
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -209,8 +211,6 @@ public:
 
 private:
 
-	static const std::string HELP_OPTION_STRING( "--help" );
-
 	class _OptionHandler
 	{
 	public:
@@ -349,8 +349,8 @@ private:
 		static const size_t THRESHOLD_HELP_OPTION_LENGTH = 24;
 		static const std::string HELP_OPTION_PADDING( THRESHOLD_HELP_OPTION_LENGTH, ' ' );
 
-		char* applicationName = strrchr( application, '/' );
-		applicationName = ( nullptr == applicationName ) ? application : applicationName;
+		const char* applicationName = strrchr( application, '/' );
+		applicationName = ( nullptr == applicationName ) ? application : applicationName + 1;
 
 		// Usage: $0 {optionsFlags}
 		std::string usageIndent( 7 + strlen( applicationName ), ' ' );
@@ -364,12 +364,16 @@ private:
 			if ( ArgumentParser::OptionValue::required == handlerIter.second.valueRequired )
 			{
 				// Required value
-				optionString += " " + handlerIter.second.valueName;
+				std::string valueName( handlerIter.second.valueName );
+				std::replace( valueName.begin(), valueName.end(), ' ', '_' );
+				optionString += " " + valueName;
 			}
 			else if ( ArgumentParser::OptionValue::optional == handlerIter.second.valueRequired )
 			{
 				// Optional value
-				optionString += " [" + handlerIter.second.valueName + "]";
+				std::string valueName( handlerIter.second.valueName );
+				std::replace( valueName.begin(), valueName.end(), ' ', '_' );
+				optionString += " [" + valueName + "]";
 			}
 
 			// Optional option flag
@@ -415,11 +419,15 @@ private:
 
 				if ( ArgumentParser::OptionValue::required == handlerIter.second.valueRequired )
 				{
-					optionString += " " + handlerInter.second.valueName;
+					std::string valueName( handlerIter.second.valueName );
+					std::replace( valueName.begin(), valueName.end(), ' ', '_' );
+					optionString += " " + valueName;
 				}
 				else if ( ArgumentParser::OptionValue::optional == handlerIter.second.valueRequired )
 				{
-					optionString += " [" + handlerIter.second.valueName + "]";
+					std::string valueName( handlerIter.second.valueName );
+					std::replace( valueName.begin(), valueName.end(), ' ', '_' );
+					optionString += " [" + valueName + "]";
 				}
 
 				if ( THRESHOLD_HELP_OPTION_LENGTH <= optionString.length() )
@@ -430,7 +438,7 @@ private:
 				else
 				{
 					fprintf( stderr, "%s%.*s%s\n", optionString.c_str(),
-						( HELP_OPTION_PADDING.length() - optionString.length() ),
+						static_cast< int >( HELP_OPTION_PADDING.length() - optionString.length() ),
 						HELP_OPTION_PADDING.c_str(), handlerIter.second.helpString.c_str() );
 				}
 			}
@@ -572,7 +580,7 @@ public:
 		}
 
 		// Check that the normalized option string does not equal "--help", ignoring case.
-		if ( 0 == strcasecmp( HELP_OPTION_STRING.c_str(), normalizedOptionString.c_str() ) )
+		if ( 0 == strcasecmp( "--help", normalizedOptionString.c_str() ) )
 		{
 			throw std::invalid_argument( "The normalized option string may not be \"--help\"" );
 		}
@@ -790,7 +798,7 @@ public:
 			if ( 0 == strncmp( argv[ index ], "--", 2 ) )
 			{
 				// Check for '--help' before anything else
-				if ( 0 == strcasecmp( HELP_OPTION_STRING.c_str(), argv[ index ] ) )
+				if ( 0 == strcasecmp( "--help", argv[ index ] ) )
 				{
 					_printHelp( argv[ 0 ] );
 					exit( EXIT_SUCCESS );
@@ -844,17 +852,19 @@ public:
 										std::vector< std::string > { optionValue } )
 								} );
 						}
-
-						// Take only the last value
-						if ( ArgumentParser::OptionSelection::take_last == handler.selection )
+						else
 						{
-							mParsedOptions[ handler.valueName ].mOptionValues[ 0 ] = optionValue;
-						}
+							// Take only the last value
+							if ( ArgumentParser::OptionSelection::take_last == handler.selection )
+							{
+								mParsedOptions[ handler.valueName ].mOptionValues[ 0 ] = optionValue;
+							}
 
-						// Push it to the vector, we're taking all the values
-						if ( ArgumentParser::OptionSelection::take_all == handler.selection )
-						{
-							mParsedOptions[ handler.valueName ].mOptionValues.push_back( optionValue );
+							// Push it to the vector, we're taking all the values
+							if ( ArgumentParser::OptionSelection::take_all == handler.selection )
+							{
+								mParsedOptions[ handler.valueName ].mOptionValues.push_back( optionValue );
+							}
 						}
 					}
 					else
@@ -899,7 +909,7 @@ public:
 			}
 
 			_printHelp( argv[ 0 ], missingOptions );
-			exit( EXIT_FAILIURE );
+			exit( EXIT_FAILURE );
 		}
 
 		return;
