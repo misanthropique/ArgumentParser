@@ -1,0 +1,58 @@
+@startuml
+class "OptionArgument" {
++{method} OptionArgument();
++{method} OptionArgument( OptionArgument&& other );
++{method} OptionArgument( const OptionArgument& other );
++{method} OptionArgument& operator=( OptionArgument&& other );
++{method} OptionArgument& operator=( const OptionArgument& other );
++{method} const std::string& optionString() const;
++{method} size_t size() const;
++{method} const std::string& value( size_t index = 0 ) const;
++{method} const std::string& valueName() const;
+}
+
+class "ArgumentParser" {
++{method} ArgumentParser();
++{method} ArgumentParser( ArgumentParser&& other );
++{method} ArgumentParser( const ArgumentParser& other );
++{method} void addOption(\n \
+	\tconst std::string& optionString,\n \
+	\tconst std::string& valueName = std::string(),\n \
+	\tbool required = false,\n \
+	\tconst std::string& helpString = std::string(),\n \
+	\tArgumentParser::OptionValue valueRequired = ArgumentParser::OptionValue::required,\n \
+	\tArgumentParser::OptionSelection selection = ArgumentParser::OptionSelection::take_last,\n \
+	\tstd::function< void( const std::string& ) > callback = nullptr,\n \
+	\tconst std::string& defaultValue = std::string() );
++{method} void clear();
++{method} const std::map< std::string, OptionArgument >& getParsedOptions() const;
++{method} const std::vector< std::string >& getNonOptionArguments() const;
++{method} bool hasParsedOption( const std::string& optionOrValueName ) const;
++{method} ArgumentParser& operator=( ArgumentParser&& other );
++{method} ArgumentParser& operator=( const ArgumentParser& other );
++{method} void parseArguments( int argc, char const* const* argv, bool throwOnMissingOptions = false );
++{method} void setApplicationDescription( const std::string& applicationDescription );
+}
+
+class "ArgumentParser::MissingRequiredOption : public std::exception" {
++{method} const char* what() const noexcept;
++{method} MissingRequiredOption& operator=( const MissingRequiredOption& other ) noexcept;
+}
+
+enum "ArgumentParser::OptionValue" {
+	none,
+	optional,
+	required
+}
+
+enum "ArgumentParser::OptionSelection" {
+	take_first,
+	take_last,
+	take_all
+}
+
+"ArgumentParser" +-- "ArgumentParser::MissingRequiredOption : public std::exception"
+"ArgumentParser" +-- "ArgumentParser::OptionValue"
+"ArgumentParser" +-- "ArgumentParser::OptionSelection"
+"ArgumentParser" o-- "OptionArgument"
+@enduml
