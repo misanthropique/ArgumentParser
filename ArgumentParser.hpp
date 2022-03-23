@@ -590,6 +590,7 @@ public:
 		if ( ( ArgumentParser::OptionValue::required == valueRequired )
 			or ( ArgumentParser::OptionValue::optional == valueRequired ) )
 		{
+			// TODO: If valueName is empty, then just use the optionString
 			// Check for empty
 			if ( valueName.empty() )
 			{
